@@ -1,0 +1,61 @@
+# TalentIQ — full stack (PostgreSQL + FastAPI backend + Vite frontend)
+#
+#   docker compose up --build        # build images and start everything
+#   docker compose up -d             # start in the background
+#   docker compose down              # stop (add -v to also wipe the database)
+#
+# Configuration is read from a ".env" file in this folder (see .env.example).
+# Values below fall back to sensible defaults if that file is absent.
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-talentiq}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-talentiq}
+      POSTGRES_DB: ${POSTGRES_DB:-talentiq}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-talentiq} -d ${POSTGRES_DB:-talentiq}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  backend:
+    build: ./talentiq-backend
+    environment:
+      # SQLAlchemy uses the psycopg (v3) driver -> postgresql+psycopg scheme.
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-talentiq}:${POSTGRES_PASSWORD:-talentiq}@db:5432/${POSTGRES_DB:-talentiq}
+      CORS_ORIGINS: http://localhost:${FRONTEND_PORT:-5173},http://127.0.0.1:${FRONTEND_PORT:-5173}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-5.2}
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
+  frontend:
+    build: ./talentiq-Frontend
+    environment:
+      VITE_PROXY_TARGET: http://backend:8000
+    ports:
+      - "${FRONTEND_PORT:-5173}:5173"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  pgdata:
