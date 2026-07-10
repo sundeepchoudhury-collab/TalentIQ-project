@@ -1,0 +1,31 @@
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+.pytest_cache/
+*.egg-info/
+
+# Node / Vite
+node_modules/
+dist/
+.vite/
+
+# Local workspace tooling and scratch data
+.agents/
+.codex/
+.launcher/
+.runlogs/
+.tmp/
+.vscode/
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+.idea/
